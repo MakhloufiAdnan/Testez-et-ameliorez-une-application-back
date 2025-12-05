@@ -25,4 +25,17 @@ public class UserService {
 
         this.userRepository.delete(user);
     }
+
+    public boolean existsByEmail(String email) {
+        return this.userRepository.existsByEmail(email);
+    }
+
+    public User save(User user) {
+        return this.userRepository.save(user);
+    }
+
+    public User findByEmail(String email) {
+        return this.userRepository.findByEmail(email)
+                .orElseThrow(NotFoundException::new);
+    }
 }
