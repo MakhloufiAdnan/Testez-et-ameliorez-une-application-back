@@ -1,5 +1,6 @@
 package com.openclassrooms.starterjwt.controllers;
 
+import com.openclassrooms.starterjwt.dto.TeacherDto;
 import com.openclassrooms.starterjwt.mapper.TeacherMapper;
 import com.openclassrooms.starterjwt.models.Teacher;
 import com.openclassrooms.starterjwt.services.TeacherService;
@@ -14,9 +15,9 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/teacher")
 public class TeacherController {
+
     private final TeacherMapper teacherMapper;
     private final TeacherService teacherService;
-
 
     public TeacherController(TeacherService teacherService,
                              TeacherMapper teacherMapper) {
@@ -25,24 +26,14 @@ public class TeacherController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<?> findById(@PathVariable("id") String id) {
-        try {
-            Teacher teacher = this.teacherService.findById(Long.valueOf(id));
-
-            if (teacher == null) {
-                return ResponseEntity.notFound().build();
-            }
-
-            return ResponseEntity.ok().body(this.teacherMapper.toDto(teacher));
-        } catch (NumberFormatException e) {
-            return ResponseEntity.badRequest().build();
-        }
+    public ResponseEntity<TeacherDto> findById(@PathVariable Long id) {
+        Teacher teacher = this.teacherService.findById(id);
+        return ResponseEntity.ok(this.teacherMapper.toDto(teacher));
     }
 
-    @GetMapping()
-    public ResponseEntity<?> findAll() {
+    @GetMapping
+    public ResponseEntity<List<TeacherDto>> findAll() {
         List<Teacher> teachers = this.teacherService.findAll();
-
-        return ResponseEntity.ok().body(this.teacherMapper.toDto(teachers));
+        return ResponseEntity.ok(this.teacherMapper.toDto(teachers));
     }
 }
