@@ -177,7 +177,7 @@
                                     <element>PACKAGE</element>
                                     <includes>
                                         <include>com.openclassrooms.starterjwt.services*</include>
-                                        <include>com.openclassrooms.starterjwt.security.services*</include>
+                                        <include>com.openclassrooms.starterjwt.security*</include>
                                         <include>com.openclassrooms.starterjwt.controller*</include>
                                     </includes>
                                     <!-- Excludes DTOs from coverage calculation -->
@@ -192,7 +192,7 @@
                                             <value>COVEREDRATIO</value>
 
                                             <!-- Coverage 80% -->
-                                            <minimum>0.95</minimum>
+                                            <minimum>0.8</minimum>
                                         </limit>
                                     </limits>
                                 </rule>
