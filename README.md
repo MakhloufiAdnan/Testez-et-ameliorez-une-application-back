@@ -1,12 +1,30 @@
 # Yoga App !
 
-Backend de l'application Yoga App !.
+Backend de l'application **Yoga App**.
 
+Ce projet fournit une API REST sécurisée (JWT) pour gérer :
+
+- les utilisateurs,
+- les enseignants,
+- les sessions de yoga,
+- la participation des utilisateurs aux sessions.
+
+L’architecture suit le découpage :
+
+- `controller` -> `service` -> `repository`
+- DTOs + mappers pour séparer l’API du modèle de persistance.
+---
 
 ## Configuration du back
 
-    - name: back
-    - port: 8080
+- **Nom du service** : `back`
+- **Port HTTP** : `8080`
+
+L’API sera accessible sur :
+
+```text
+http://localhost:8080
+```
 
 ## Pré-requis pour le bon fonctionnement du back :
 
@@ -14,6 +32,25 @@ Backend de l'application Yoga App !.
     -> Docker
     -> Docker Compose
     -> Maven 3.9.3 (https://archive.apache.org/dist/maven/maven-3/3.9.3/binaries/) ou plus
+
+
+## Installation & lancement de l’application
+
+### Récupérer le projet
+
+```
+git clone https://github.com/MakhloufiAdnan/Testez-et-ameliorez-une-application-back.git
+```
+
+### Configuration de la base de données
+
+Le projet utilise MySQL via Docker.
+Un fichier compose.yaml est fourni à la racine.
+Lancer la base MySQL :
+```
+docker compose up -d
+```
+Cela démarre un conteneur MySQL avec la configuration définie dans compose.yaml.
 
 ## Démarrage du back
 Pour démarrer le back, il :
@@ -78,36 +115,29 @@ Les traces logs devraient ressemblées à ceci :
 
 Sur Docker-Desktop, vous devriez voir apparaître un container MySQL qui correspond au projet.
 
-![1-docker-desktop](pictures/1-docker-desktop.png)
-
 Vous pouvez vous connecter à la base de données et vérifier que la table ```USERS``` a été créée.
 Pour cela, cliquez sur le lien `back_mysql` ce qui vous amènera sur la vue complète de la base de données.
 Dans l'onglet ```Exec```, il faut :
 
-1. se connecter à la base de données. Tapez la commande ci-dessous
-
+1. se connecter à la base de données. Tapez la commande ci-dessous (les variables sont définies dans votre .env)
     ```
-    mysql -u user_test -p
+    mysql -u <nom_user> -p
     ```
-   L'invite de commande demandera le mot de passe. Il est : ```test_password```.
-
+   L'invite de commande demandera le mot de passe : ```<votre_password>```.
 
 2. Se connecter au schéma de base de données `test`. Dans l'invite de commande, tapez la commande ci-dessous :
-
     ```
-    use test;
+    USE test;
     ```
 
-3. Copier le contenu du fichier `ressources/sql/insert_user.sql` et l'exécuter dans l'invite de commande :
-
+3. Copier le contenu du fichier `src/main/resources/sql/insert_user.sql` et l'exécuter dans l'invite de commande :
     ```
     INSERT INTO users(first_name, last_name, admin, email, password) VALUES ('Admin', 'Admin', true, 'yoga@studio.com', '$2a$10$.Hsa/ZjUVaHqi0tp9xieMeewrnZxrZ5pQRzddUXE/WjDu2ZThe6Iq');
     ```
    
-3. Vérifier le contenu de la table `users`.
-
+4. Vérifier le contenu de la table `users`.
     ```
-    select * from users;
+    SELECT * FROM users;
     ```
    Le résultat devrait afficher les données de l'utilisateur inséré précédemment.
    
@@ -115,11 +145,6 @@ Dans l'onglet ```Exec```, il faut :
 
    - login: yoga@studio.com
    - password: test!1234
-
-La capture d'écran ci-dessous résume les étapes précédentes :
-
-![2-docker-desktop-bdd](pictures/2-docker-desktop-bdd.png)
-
 
 ## Ressources
 
@@ -133,3 +158,98 @@ Importez la collection Postman
 La documentation de Postman se trouve ici :
 
 https://learning.postman.com/docs/getting-started/importing-and-exporting-data/#importing-data-into-postman
+
+## Utilisation
+
+### Tester les requêtes :
+
+- login / register,
+- gestion des utilisateurs,
+- gestion des sessions,
+- participation aux sessions, etc.
+
+### Lancer les tests
+
+Les tests sont composés :
+
+- de tests unitaires (services, sécurité, utilitaires),
+- de tests d’intégration (controllers + contexte Spring Boot).
+
+1. Lancer tous les tests
+
+Depuis la racine du projet :
+```
+mvn clean test
+```
+Cela va :
+- lancer tous les tests JUnit 5 (unitaires + intégration),
+- générer les rapports JaCoCo,
+- vérifier le seuil de couverture configuré (≥ 80 %).
+
+2. Lancer un test spécifique
+
+- Par exemple, pour ne lancer que les tests du UserService :
+```
+mvn -Dtest=UserServiceTest test
+```
+Pour un test d’intégration de controller :
+```
+mvn -Dtest=SessionControllerTest test
+```
+3. Structure du projet 
+
+```text
+   src/
+ ├── main/
+ │   └── java/com/openclassrooms/starterjwt
+ │       ├── configuration/
+ │       ├── controllers/
+ │       ├── dto/
+ │       ├── exception/
+ │       ├── mapper/
+ │       ├── models/
+ │       ├── payload/
+ │       ├── repository/
+ │       ├── security/
+ │       └── services/
+ └── test/
+     └── java/com/openclassrooms/starterjwt
+         ├── controllers/        # tests d’intégration des controllers
+         ├── services/           # tests unitaires des services
+         ├── security/           # tests JwtUtils, UserDetailsService, etc.
+         └── SpringBootSecurityJwtApplicationTest.java  # test de contexte
+```
+4. Rapports de couverture (JaCoCo)
+
+La couverture de code est mesurée avec JaCoCo, configuré dans le pom.xml.
+
+- Générer le rapport
+
+Le rapport est généré automatiquement lors de :
+```
+mvn clean test
+```
+- Où trouver le rapport
+
+Après exécution :
+
+Rapport HTML JaCoCo :
+
+target/site/jacoco/index.html
+
+- Seuil minimal de couverture
+
+Dans le pom.xml, une règle JaCoCo est définie pour exiger au moins 80 % de couverture (par exemple sur le compteur LINE/COVEREDRATIO) pour les packages cibles.
+
+Les packages purement “données” comme :
+
+com.openclassrooms.starterjwt.dto
+
+com.openclassrooms.starterjwt.payload.request
+
+com.openclassrooms.starterjwt.payload.response
+
+sont exclus de cette règle, car ils ne contiennent pas de logique métier.
+
+Les rapports JaCoCo (instructions, branches, lignes, méthodes, complexité) montrent une couverture supérieure à 80 % sur les parties importantes du code (services, controllers, sécurité). 
+Le plugin applique automatiquement une règle de couverture minimale (80 % sur les lignes) et le build échoue si ce seuil n’est pas respecté.
