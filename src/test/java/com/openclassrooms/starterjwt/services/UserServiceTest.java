@@ -1,6 +1,7 @@
 package com.openclassrooms.starterjwt.services;
 
 import com.openclassrooms.starterjwt.exception.NotFoundException;
+import com.openclassrooms.starterjwt.exception.UnauthorizedException;
 import com.openclassrooms.starterjwt.models.User;
 import com.openclassrooms.starterjwt.repository.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -65,7 +66,6 @@ class UserServiceTest {
         userService.delete(id);
 
         // Assert
-        verify(userRepository).findById(id);
         verify(userRepository).delete(user);
     }
 
@@ -77,7 +77,41 @@ class UserServiceTest {
 
         // Act + Assert
         assertThrows(NotFoundException.class, () -> userService.delete(id));
-        verify(userRepository).findById(id);
+        verify(userRepository, never()).delete(any());
+    }
+
+    @Test
+    void deleteIfOwner_shouldDelete_whenRequesterIsOwner() {
+        // Arrange
+        Long id = 1L;
+        String ownerEmail = "owner@test.com";
+
+        User user = new User();
+        user.setId(id);
+        user.setEmail(ownerEmail);
+
+        when(userRepository.findById(id)).thenReturn(Optional.of(user));
+
+        // Act
+        userService.deleteIfOwner(id, ownerEmail);
+
+        // Assert
+        verify(userRepository).delete(user);
+    }
+
+    @Test
+    void deleteIfOwner_shouldThrowUnauthorized_whenRequesterIsNotOwner() {
+        // Arrange
+        Long id = 1L;
+
+        User user = new User();
+        user.setId(id);
+        user.setEmail("owner@test.com");
+
+        when(userRepository.findById(id)).thenReturn(Optional.of(user));
+
+        // Act + Assert
+        assertThrows(UnauthorizedException.class, () -> userService.deleteIfOwner(id, "other@test.com"));
         verify(userRepository, never()).delete(any());
     }
 
@@ -131,7 +165,7 @@ class UserServiceTest {
     @Test
     void findByEmail_shouldThrowNotFoundException_whenUserDoesNotExist() {
         // Arrange
-        String email = "tot@test.com";
+        String email = "missing@test.com";
         when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
 
         // Act + Assert

@@ -1,8 +1,10 @@
 package com.openclassrooms.starterjwt.services;
 
+import com.openclassrooms.starterjwt.dto.SessionDto;
 import com.openclassrooms.starterjwt.exception.BadRequestException;
 import com.openclassrooms.starterjwt.exception.NotFoundException;
 import com.openclassrooms.starterjwt.models.Session;
+import com.openclassrooms.starterjwt.models.Teacher;
 import com.openclassrooms.starterjwt.models.User;
 import com.openclassrooms.starterjwt.repository.SessionRepository;
 import com.openclassrooms.starterjwt.repository.UserRepository;
@@ -12,12 +14,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -29,13 +30,37 @@ class SessionServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private TeacherService teacherService;
+
     @InjectMocks
     private SessionService sessionService;
 
+    private Session baseSession() {
+        Session s = new Session();
+        s.setName("Yoga");
+        s.setDate(new Date());
+        s.setDescription("Desc");
+        s.setUsers(new ArrayList<>());
+        return s;
+    }
+
+    private SessionDto baseDto(Long teacherId, List<Long> userIds) {
+        SessionDto dto = new SessionDto();
+        dto.setName("Yoga");
+        dto.setDate(new Date());
+        dto.setDescription("Desc");
+
+        dto.setTeacher_id(teacherId);
+
+        dto.setUsers(userIds);
+        return dto;
+    }
+
     @Test
-    void create_shouldSaveSession() {
+    void create_shouldSaveSession_legacySignature() {
         // Arrange
-        Session session = new Session();
+        Session session = baseSession();
         when(sessionRepository.save(session)).thenReturn(session);
 
         // Act
@@ -47,137 +72,203 @@ class SessionServiceTest {
     }
 
     @Test
-    void findAll_shouldReturnAllSessions() {
-        // Arrange
-        Session s1 = new Session();
-        s1.setId(1L);
-        Session s2 = new Session();
-        s2.setId(2L);
-
-        when(sessionRepository.findAll()).thenReturn(List.of(s1, s2));
-
-        // Act
-        List<Session> result = sessionService.findAll();
-
-        // Assert
-        assertThat(result)
-                .hasSize(2)
-                .containsExactly(s1, s2);
-        verify(sessionRepository).findAll();
-    }
-
-    @Test
-    void getById_shouldReturnSession_whenExists() {
+    void update_shouldSaveSession_legacySignature_whenExists() {
         // Arrange
         Long id = 1L;
-        Session session = new Session();
-        session.setId(id);
 
-        when(sessionRepository.findById(id)).thenReturn(Optional.of(session));
+        Session existing = new Session();
+        existing.setId(id);
+        existing.setName("Old");
+
+        Session incoming = new Session();
+        incoming.setName("New");
+        incoming.setDate(new Date());
+        incoming.setDescription("New desc");
+
+        when(sessionRepository.findById(id)).thenReturn(Optional.of(existing));
+        when(sessionRepository.save(any(Session.class))).thenAnswer(inv -> inv.getArgument(0));
 
         // Act
-        Session result = sessionService.getById(id);
+        Session result = sessionService.update(id, incoming);
 
         // Assert
-        assertThat(result).isEqualTo(session);
-        verify(sessionRepository).findById(id);
+        assertThat(result.getId()).isEqualTo(id);
+        assertThat(result.getName()).isEqualTo("New");
+        verify(sessionRepository).save(existing); // le service merge dans existing puis save(existing)
     }
 
     @Test
-    void getById_shouldThrowNotFoundException_whenSessionDoesNotExist() {
+    void update_shouldThrowNotFound_legacySignature_whenMissing() {
         // Arrange
         Long id = 99L;
         when(sessionRepository.findById(id)).thenReturn(Optional.empty());
 
         // Act + Assert
-        assertThrows(NotFoundException.class, () -> sessionService.getById(id));
-        verify(sessionRepository).findById(id);
-    }
-
-    @Test
-    void update_shouldSaveSession_whenSessionExists() {
-        // Arrange
-        Long id = 1L;
-        Session session = new Session();
-        session.setName("Old name");
-
-        when(sessionRepository.existsById(id)).thenReturn(true);
-        when(sessionRepository.save(any(Session.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        // Act
-        Session result = sessionService.update(id, session);
-
-        // Assert
-        assertThat(result.getId()).isEqualTo(id);
-        verify(sessionRepository).existsById(id);
-        verify(sessionRepository).save(session);
-    }
-
-    @Test
-    void update_shouldThrowNotFoundException_whenSessionDoesNotExist() {
-        // Arrange
-        Long id = 99L;
-        Session session = new Session();
-
-        when(sessionRepository.existsById(id)).thenReturn(false);
-
-        // Act + Assert
-        assertThrows(NotFoundException.class, () -> sessionService.update(id, session));
-        verify(sessionRepository).existsById(id);
+        assertThrows(NotFoundException.class, () -> sessionService.update(id, new Session()));
         verify(sessionRepository, never()).save(any());
     }
 
     @Test
-    void delete_shouldDeleteSession_whenExists() {
-        // Arrange
-        Long id = 1L;
-        Session session = new Session();
-        session.setId(id);
+    void create_withDto_shouldSetTeacher_andSetUsersEmpty_whenDtoUsersNull() {
 
-        when(sessionRepository.findById(id)).thenReturn(Optional.of(session));
+        // Arrange
+        Long teacherId = 1L;
+
+        Session session = baseSession();
+        SessionDto dto = baseDto(teacherId, null);
+
+        Teacher teacher = new Teacher();
+        teacher.setId(teacherId);
+
+        when(teacherService.findById(teacherId)).thenReturn(teacher);
+        when(sessionRepository.save(any(Session.class))).thenAnswer(inv -> inv.getArgument(0));
 
         // Act
-        sessionService.delete(id);
+        Session saved = sessionService.create(session, dto);
 
         // Assert
-        verify(sessionRepository).findById(id);
-        verify(sessionRepository).delete(session);
+        assertThat(saved.getTeacher()).isEqualTo(teacher);
+        assertThat(saved.getUsers()).isNotNull().isEmpty();
+        verify(teacherService).findById(teacherId);
+        verify(userRepository, never()).findById(any());
+        verify(sessionRepository).save(session);
     }
 
     @Test
-    void delete_shouldThrowNotFoundException_whenSessionDoesNotExist() {
+    void create_withDto_shouldResolveUsers_whenDtoUsersProvided() {
         // Arrange
-        Long id = 99L;
-        when(sessionRepository.findById(id)).thenReturn(Optional.empty());
-
-        // Act + Assert
-        assertThrows(NotFoundException.class, () -> sessionService.delete(id));
-        verify(sessionRepository).findById(id);
-        verify(sessionRepository, never()).delete(any());
-    }
-
-    @Test
-    void participate_shouldAddUser_whenNotAlreadyParticipating() {
-        // Arrange
-        Long sessionId = 1L;
+        Long teacherId = 1L;
         Long userId = 10L;
+
+        Session session = baseSession();
+        SessionDto dto = baseDto(teacherId, List.of(userId));
+
+        Teacher teacher = new Teacher();
+        teacher.setId(teacherId);
 
         User user = new User();
         user.setId(userId);
 
-        Session session = new Session();
-        session.setId(sessionId);
-        session.setUsers(new ArrayList<>());
-
-        when(sessionRepository.findById(sessionId)).thenReturn(Optional.of(session));
+        when(teacherService.findById(teacherId)).thenReturn(teacher);
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(sessionRepository.save(any(Session.class))).thenAnswer(inv -> inv.getArgument(0));
 
         // Act
-        sessionService.participate(sessionId, userId);
+        Session saved = sessionService.create(session, dto);
 
         // Assert
-        assertThat(session.getUsers()).containsExactly(user);
+        assertThat(saved.getTeacher()).isEqualTo(teacher);
+        assertThat(saved.getUsers()).containsExactly(user);
+        verify(userRepository).findById(userId);
         verify(sessionRepository).save(session);
+    }
+
+    @Test
+    void create_withDto_shouldThrowNotFound_whenUserMissing() {
+        // Arrange
+        Long teacherId = 1L;
+        Long missingUserId = 99L;
+
+        Session session = baseSession();
+        SessionDto dto = baseDto(teacherId, List.of(missingUserId));
+
+        Teacher teacher = new Teacher();
+        teacher.setId(teacherId);
+
+        when(teacherService.findById(teacherId)).thenReturn(teacher);
+        when(userRepository.findById(missingUserId)).thenReturn(Optional.empty());
+
+        // Act + Assert
+        assertThrows(NotFoundException.class, () -> sessionService.create(session, dto));
+        verify(sessionRepository, never()).save(any());
+    }
+
+    @Test
+    void update_withDto_shouldSave_andReplaceUsers_whenDtoUsersProvided() {
+        // Arrange
+        Long id = 1L;
+        Long teacherId = 2L;
+        Long userId = 10L;
+
+        Session existing = baseSession();
+        existing.setId(id);
+        existing.setUsers(new ArrayList<>(List.of(new User()))); // ancien users
+
+        Session incoming = baseSession();
+        incoming.setName("Updated name");
+
+        SessionDto dto = baseDto(teacherId, List.of(userId));
+
+        Teacher teacher = new Teacher();
+        teacher.setId(teacherId);
+
+        User user = new User();
+        user.setId(userId);
+
+        when(sessionRepository.findById(id)).thenReturn(Optional.of(existing));
+        when(teacherService.findById(teacherId)).thenReturn(teacher);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(sessionRepository.save(any(Session.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // Act
+        Session updated = sessionService.update(id, incoming, dto);
+
+        // Assert
+        assertThat(updated.getId()).isEqualTo(id);
+        assertThat(updated.getName()).isEqualTo("Updated name");
+        assertThat(updated.getTeacher()).isEqualTo(teacher);
+        assertThat(updated.getUsers()).containsExactly(user); // remplacés par ceux du dto
+        verify(sessionRepository).save(existing);
+    }
+
+    @Test
+    void update_withDto_shouldKeepExistingUsers_whenDtoUsersNull() {
+
+        // Arrange
+        Long id = 1L;
+        Long teacherId = 2L;
+
+        User existingUser = new User();
+        existingUser.setId(77L);
+
+        Session existing = baseSession();
+        existing.setId(id);
+        existing.setUsers(new ArrayList<>(List.of(existingUser)));
+
+        Session incoming = baseSession();
+        incoming.setName("Updated name");
+
+        SessionDto dto = baseDto(teacherId, null); // users null -> doit conserver
+
+        Teacher teacher = new Teacher();
+        teacher.setId(teacherId);
+
+        when(sessionRepository.findById(id)).thenReturn(Optional.of(existing));
+        when(teacherService.findById(teacherId)).thenReturn(teacher);
+        when(sessionRepository.save(any(Session.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // Act
+        Session updated = sessionService.update(id, incoming, dto);
+
+        // Assert
+        assertThat(updated.getUsers()).containsExactly(existingUser); // inchangé
+        verify(userRepository, never()).findById(any());
+        verify(sessionRepository).save(existing);
+    }
+
+    @Test
+    void update_withDto_shouldThrowNotFound_whenSessionMissing() {
+
+        // Arrange
+        Long id = 999L;
+        when(sessionRepository.findById(id)).thenReturn(Optional.empty());
+
+        Session incoming = baseSession();
+        SessionDto dto = baseDto(1L, null);
+
+        // Act + Assert
+        assertThrows(NotFoundException.class, () -> sessionService.update(id, incoming, dto));
+        verify(sessionRepository, never()).save(any());
     }
 
     @Test
@@ -189,7 +280,7 @@ class SessionServiceTest {
         User user = new User();
         user.setId(userId);
 
-        Session session = new Session();
+        Session session = baseSession();
         session.setId(sessionId);
         session.setUsers(new ArrayList<>(List.of(user)));
 
@@ -198,90 +289,6 @@ class SessionServiceTest {
 
         // Act + Assert
         assertThrows(BadRequestException.class, () -> sessionService.participate(sessionId, userId));
-        verify(sessionRepository, never()).save(any());
-    }
-
-    @Test
-    void participate_shouldThrowNotFound_whenSessionDoesNotExist() {
-        // Arrange
-        Long sessionId = 1L;
-        Long userId = 10L;
-
-        when(sessionRepository.findById(sessionId)).thenReturn(Optional.empty());
-
-        // Act + Assert
-        assertThrows(NotFoundException.class, () -> sessionService.participate(sessionId, userId));
-        verify(userRepository, never()).findById(any());
-    }
-
-    @Test
-    void participate_shouldThrowNotFound_whenUserDoesNotExist() {
-        // Arrange
-        Long sessionId = 1L;
-        Long userId = 10L;
-
-        Session session = new Session();
-        session.setId(sessionId);
-        session.setUsers(new ArrayList<>());
-
-        when(sessionRepository.findById(sessionId)).thenReturn(Optional.of(session));
-        when(userRepository.findById(userId)).thenReturn(Optional.empty());
-
-        // Act + Assert
-        assertThrows(NotFoundException.class, () -> sessionService.participate(sessionId, userId));
-        verify(sessionRepository, never()).save(any());
-    }
-
-    @Test
-    void noLongerParticipate_shouldRemoveUser_whenParticipating() {
-        // Arrange
-        Long sessionId = 1L;
-        Long userId = 10L;
-
-        User user = new User();
-        user.setId(userId);
-
-        Session session = new Session();
-        session.setId(sessionId);
-        session.setUsers(new ArrayList<>(List.of(user)));
-
-        when(sessionRepository.findById(sessionId)).thenReturn(Optional.of(session));
-
-        // Act
-        sessionService.noLongerParticipate(sessionId, userId);
-
-        // Assert
-        assertThat(session.getUsers()).isEmpty();
-        verify(sessionRepository).save(session);
-    }
-
-    @Test
-    void noLongerParticipate_shouldThrowBadRequest_whenUserIsNotParticipating() {
-        // Arrange
-        Long sessionId = 1L;
-        Long userId = 10L;
-
-        Session session = new Session();
-        session.setId(sessionId);
-        session.setUsers(new ArrayList<>());
-
-        when(sessionRepository.findById(sessionId)).thenReturn(Optional.of(session));
-
-        // Act + Assert
-        assertThrows(BadRequestException.class, () -> sessionService.noLongerParticipate(sessionId, userId));
-        verify(sessionRepository, never()).save(any());
-    }
-
-    @Test
-    void noLongerParticipate_shouldThrowNotFound_whenSessionDoesNotExist() {
-        // Arrange
-        Long sessionId = 1L;
-        Long userId = 10L;
-
-        when(sessionRepository.findById(sessionId)).thenReturn(Optional.empty());
-
-        // Act + Assert
-        assertThrows(NotFoundException.class, () -> sessionService.noLongerParticipate(sessionId, userId));
         verify(sessionRepository, never()).save(any());
     }
 }

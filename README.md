@@ -134,17 +134,17 @@ Dans l'onglet ```Exec```, il faut :
     ```
     INSERT INTO users(first_name, last_name, admin, email, password) VALUES ('Admin', 'Admin', true, 'yoga@studio.com', '$2a$10$.Hsa/ZjUVaHqi0tp9xieMeewrnZxrZ5pQRzddUXE/WjDu2ZThe6Iq');
     ```
-   
+
 4. Vérifier le contenu de la table `users`.
     ```
     SELECT * FROM users;
     ```
    Le résultat devrait afficher les données de l'utilisateur inséré précédemment.
-   
+
    Ce script crée l'utilisateur admin par défaut :
 
-   - login: yoga@studio.com
-   - password: test!1234
+    - login: yoga@studio.com
+    - password: test!1234
 
 ## Ressources
 
@@ -179,12 +179,13 @@ Les tests sont composés :
 
 Depuis la racine du projet :
 ```
-mvn clean test
+mvn clean verify
 ```
 Cela va :
 - lancer tous les tests JUnit 5 (unitaires + intégration),
 - générer les rapports JaCoCo,
-- vérifier le seuil de couverture configuré (≥ 80 %).
+- vérifier le seuil de couverture configuré via `jacoco:check` (≥ 80 %).
+  Rapport de couverture : `target/site/jacoco/index.html`.
 
 2. Lancer un test spécifique
 
@@ -196,7 +197,7 @@ Pour un test d’intégration de controller :
 ```
 mvn -Dtest=SessionControllerTest test
 ```
-3. Structure du projet 
+3. Structure du projet
 
 ```text
    src/
@@ -239,9 +240,23 @@ target/site/jacoco/index.html
 
 - Seuil minimal de couverture
 
-Dans le pom.xml, une règle JaCoCo est définie pour exiger au moins 80 % de couverture (par exemple sur le compteur LINE/COVEREDRATIO) pour les packages cibles.
+## Règles de couverture (seuil minimal 80%)
 
-Les packages purement “données” comme :
+### Le build applique une règle JaCoCo ≥ 80% sur :
+
+* INSTRUCTION
+* BRANCH
+* LINE
+
+- La règle est appliquée sur les packages contenant de la logique :
+
+com.openclassrooms.starterjwt.controllers
+
+com.openclassrooms.starterjwt.services
+
+com.openclassrooms.starterjwt.security
+
+- Et les packages suivants sont exclus du calcul car considérés comme DTO / payload (exigence de l’énoncé) :
 
 com.openclassrooms.starterjwt.dto
 
@@ -249,7 +264,4 @@ com.openclassrooms.starterjwt.payload.request
 
 com.openclassrooms.starterjwt.payload.response
 
-sont exclus de cette règle, car ils ne contiennent pas de logique métier.
-
-Les rapports JaCoCo (instructions, branches, lignes, méthodes, complexité) montrent une couverture supérieure à 80 % sur les parties importantes du code (services, controllers, sécurité). 
-Le plugin applique automatiquement une règle de couverture minimale (80 % sur les lignes) et le build échoue si ce seuil n’est pas respecté.
+Si les seuils ne sont pas atteints, Maven échoue avec Coverage checks have not been met.

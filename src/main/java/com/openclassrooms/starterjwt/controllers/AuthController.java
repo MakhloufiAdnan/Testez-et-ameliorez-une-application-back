@@ -1,25 +1,19 @@
 package com.openclassrooms.starterjwt.controllers;
 
-
-import com.openclassrooms.starterjwt.models.User;
 import com.openclassrooms.starterjwt.payload.request.LoginRequest;
 import com.openclassrooms.starterjwt.payload.request.SignupRequest;
 import com.openclassrooms.starterjwt.payload.response.JwtResponse;
 import com.openclassrooms.starterjwt.payload.response.MessageResponse;
 import com.openclassrooms.starterjwt.security.jwt.JwtUtils;
 import com.openclassrooms.starterjwt.security.services.UserDetailsImpl;
-import com.openclassrooms.starterjwt.services.UserService;
+import com.openclassrooms.starterjwt.services.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -27,17 +21,14 @@ public class AuthController {
 
     private final AuthenticationManager authenticationManager;
     private final JwtUtils jwtUtils;
-    private final PasswordEncoder passwordEncoder;
-    private final UserService userService;
+    private final AuthService authService;
 
     public AuthController(AuthenticationManager authenticationManager,
-                          PasswordEncoder passwordEncoder,
                           JwtUtils jwtUtils,
-                          UserService userService) {
+                          AuthService authService) {
         this.authenticationManager = authenticationManager;
         this.jwtUtils = jwtUtils;
-        this.passwordEncoder = passwordEncoder;
-        this.userService = userService;
+        this.authService = authService;
     }
 
     @PostMapping("/login")
@@ -70,23 +61,7 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<MessageResponse> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
-        if (userService.existsByEmail(signUpRequest.getEmail())) {
-            return ResponseEntity
-                    .badRequest()
-                    .body(new MessageResponse("Error: Email is already taken!"));
-        }
-
-        // Create new user's account
-        User user = new User(
-                signUpRequest.getEmail(),
-                signUpRequest.getLastName(),
-                signUpRequest.getFirstName(),
-                passwordEncoder.encode(signUpRequest.getPassword()),
-                false
-        );
-
-        userService.save(user);
-
+        authService.register(signUpRequest);
         return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
     }
 }

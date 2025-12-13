@@ -5,7 +5,6 @@ import com.openclassrooms.starterjwt.mapper.SessionMapper;
 import com.openclassrooms.starterjwt.models.Session;
 import com.openclassrooms.starterjwt.services.SessionService;
 import jakarta.validation.Valid;
-import lombok.extern.log4j.Log4j2;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,14 +12,12 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/session")
-@Log4j2
 public class SessionController {
 
     private final SessionMapper sessionMapper;
     private final SessionService sessionService;
 
-    public SessionController(SessionService sessionService,
-                             SessionMapper sessionMapper) {
+    public SessionController(SessionService sessionService, SessionMapper sessionMapper) {
         this.sessionMapper = sessionMapper;
         this.sessionService = sessionService;
     }
@@ -38,17 +35,17 @@ public class SessionController {
     }
 
     @PostMapping
-    public ResponseEntity<SessionDto> create(@Valid @RequestBody SessionDto sessionDto) {
-        log.info(sessionDto);
-        Session session = this.sessionService.create(this.sessionMapper.toEntity(sessionDto));
-        log.info(session);
-        return ResponseEntity.ok(this.sessionMapper.toDto(session));
+    public ResponseEntity<SessionDto> create(@Valid @RequestBody SessionDto dto) {
+        Session session = this.sessionMapper.toEntity(dto);
+        Session saved = this.sessionService.create(session, dto);
+        return ResponseEntity.ok(this.sessionMapper.toDto(saved));
     }
 
     @PutMapping("{id}")
     public ResponseEntity<SessionDto> update(@PathVariable Long id,
-                                             @Valid @RequestBody SessionDto sessionDto) {
-        Session updated = this.sessionService.update(id, this.sessionMapper.toEntity(sessionDto));
+                                             @Valid @RequestBody SessionDto dto) {
+        Session incoming = this.sessionMapper.toEntity(dto);
+        Session updated = this.sessionService.update(id, incoming, dto);
         return ResponseEntity.ok(this.sessionMapper.toDto(updated));
     }
 
